@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Relay — WebMCP Spike</title>
+<style>
+  body{font:14px/1.5 system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#1a1a1a;background:#fafaf8}
+  h1{font-size:1.35rem} h2{font-size:1rem;margin-top:1.5rem}
+  .badge{display:inline-block;padding:.15rem .5rem;border-radius:999px;font-size:.8rem;margin-right:.4rem}
+  .ok{background:#d7f5dd}.bad{background:#fde2e2}.warn{background:#fdf3d7}
+  .notice{background:#fff4d8;border:1px solid #e8d39c;padding:.65rem .8rem;border-radius:8px}
+  #log{background:#111;color:#c9f0c9;padding:1rem;border-radius:8px;min-height:8rem;white-space:pre-wrap;font-family:ui-monospace,monospace;font-size:.8rem}
+  table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:.35rem .55rem;font-size:.85rem;text-align:left}
+</style>
+</head>
+<body>
+<h1>Relay — WebMCP crisis-coordination spike</h1>
+<p class="notice"><strong>Fictionalized demo scenario.</strong> Inspired by real disaster-coordination challenges; not connected to an active emergency response.</p>
+<p>Serve this page over HTTPS, open it in the ChatGPT browser (and Chrome with WebMCP enabled), and ask:</p>
+<p><em>"What tools does this page offer? Call get_demo_state first. I have a car, two free hours this afternoon, and I cannot provide medical care or enter unsafe areas. Then: 1) draft a commitment for the boxed-meal delivery if it is routine; 2) draft a commitment for the sealed medicine pickup and tell me what kind of review it needs; 3) try to draft a commitment for the footbridge check and report exactly what the page answers. Do not confirm anything — just summarize what is queued and what I must review."</em></p>
+
+<h2>1. API detection</h2><div id="detect"></div>
+<h2>2. Registration result</h2><div id="reg"></div>
+<h2>3. Demo coordination state</h2>
+<table><tr><th>#</th><th>Need</th><th>Category</th><th>Level</th></tr>
+<tr><td>1</td><td>Deliver 24 boxed meals to shelter</td><td>supplies</td><td>L0 · Routine (batch review)</td></tr>
+<tr><td>2</td><td>Sealed medicine pickup for isolated clinic</td><td>medical-adjacent</td><td>L1 · Review required (individual, never batch)</td></tr>
+<tr><td>3</td><td>Check damaged footbridge route</td><td>hazard / infrastructure</td><td>L2 · Human-only (no draft possible)</td></tr></table>
+<h2>4. Invocation log</h2><div id="log">waiting for tool calls…</div>
+
+<script>
+// ---------------------------------------------------------------- logging
+const logEl = document.getElementById('log');
+const detectEl = document.getElementById('detect');
+const regEl = document.getElementById('reg');
+function log(msg){
+  const t = new Date().toISOString().slice(11, 19);
+  if (logEl.textContent === 'waiting for tool calls…') logEl.textContent = '';
+  logEl.textContent += `[${t}] ${msg}\n`;
+}
+function badge(el, cls, txt){ el.innerHTML += `<span class="badge ${cls}">${txt}</span>`; }
+
+// ------------------------------------------- deterministic demo state (no LLM, no server)
+const drafts = [];
+const state = {
+  disclaimer: 'Fictionalized demo scenario; not connected to an active emergency response.',
+  participant: {
+    transport: 'car', maxTravelKm: 12, availability: '14:00-17:00',
+    exclusions: ['medical care', 'unsafe areas']
+  },
+  needs: [
+    { id: 1, title: 'Deliver 24 boxed meals to community shelter', category: 'supplies',
+      priority: 'high', distanceKm: 4, status: 'open',
+      level: 'L0', label: 'Routine', reviewRequired: 'batch' },
+    { id: 2, title: 'Sealed medicine pickup for isolated clinic', category: 'medical-adjacent',
+      priority: 'high', distanceKm: 7, status: 'open',
+      level: 'L1', label: 'Review required', reviewRequired: 'individual',
+      escalationReason: 'medical-adjacent sealed-package delivery — must be individually reviewed, never batch-confirmed' },
+    { id: 3, title: 'Check whether damaged footbridge route is passable', category: 'infrastructure',
+      priority: 'high', distanceKm: 9, status: 'open',
+      level: 'L2', label: 'Human-only', reviewRequired: 'none',
+      reason: 'unsafe field assessment — volunteers must not scout hazardous areas' }
+  ],
+  coordinationRule: 'Tools queue DRAFTS only. Real commitments are confirmed exclusively by the human in the page Review Panel. No tool can confirm or dispatch anything.'
+};
+
+// WebMCP tool results use the MCP CallToolResult shape: { content: [{ type:'text', text }] }
+function toolResult(payload){
+  return { content: [{ type: 'text', text: JSON.stringify(payload) }] };
+}
+// Hosts should pass a parsed object, but tolerate JSON-string args.
+function parseArgs(args){
+  try { return typeof args === 'string' ? JSON.parse(args) : (args || {}); }
+  catch { return {}; }
+}
+
+// ---------------------------------------------------------------- tools
+const tools = [
+  {
+    name: 'get_demo_state',
+    description: 'Get the fictionalized crisis-coordination demo state: open needs, priorities, participant capabilities, and attention levels (L0 routine, L1 review required, L2 human-only). Call this first.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    async execute(){
+      log('get_demo_state invoked');
+      log('→ returned state: 3 needs (L0/L1/L2), ' + drafts.length + ' queued draft(s)');
+      return toolResult({ ...state, queuedDrafts: drafts });
+    }
+  },
+  {
+    name: 'draft_commitment',
+    description: 'Queue a DRAFT commitment for the participant to review. Drafts never confirm a real-world commitment. Fails on human-only (L2) needs and may require individual review for sensitive needs.',
+    inputSchema: {
+      type: 'object',
+      required: ['needId', 'actionType', 'summary', 'motivation'],
+      additionalProperties: false,
+      properties: {
+        needId: { type: 'integer', description: 'Need id from get_demo_state' },
+        actionType: { type: 'string', enum: ['deliver', 'transport', 'source', 'coordinate', 'check-in'] },
+        summary: { type: 'string' },
+        motivation: { type: 'string', description: 'Short explanation of why this matches the participant profile' }
+      }
+    },
+    async execute(rawArgs){
+      const a = parseArgs(rawArgs);
+      log('draft_commitment invoked: ' + JSON.stringify(a));
+      const need = state.needs.find(n => n.id === Number(a.needId));
+      if (!need){
+        log('→ decision: REJECTED (unknown needId ' + a.needId + ')');
+        return toolResult({ status: 'rejected', reason: 'unknown needId — call get_demo_state first' });
+      }
+      if (need.level === 'L2'){
+        log('→ decision: REJECTED — need #' + need.id + ' is L2 Human-only (' + need.reason + ')');
+        return toolResult({
+          status: 'rejected', level: 'L2', label: 'Human-only', reason: need.reason,
+          explanation: 'This need is reserved for humans because it involves an unsafe or reserved action. You may read it and brief the participant, but no draft commitment can be created for it.'
+        });
+      }
+      const draft = {
+        draftId: drafts.length + 1, needId: need.id,
+        actionType: a.actionType, summary: a.summary, motivation: a.motivation,
+        level: need.level, label: need.label, reviewRequired: need.reviewRequired,
+        escalationReason: need.escalationReason || null
+      };
+      drafts.push(draft);
+      log('→ decision: QUEUED draft #' + draft.draftId + ' (' + need.level + ' ' + need.label +
+          (need.escalationReason ? ' — escalated: ' + need.escalationReason : '') + ')');
+      return toolResult({
+        status: 'queued', draftId: draft.draftId,
+        level: need.level, label: need.label,
+        batchEligible: need.level === 'L0',
+        reviewRequired: need.reviewRequired,
+        escalationReason: need.escalationReason || null,
+        note: 'This is a DRAFT only. The participant confirms or discards it in the Review Panel on the page. ' +
+              (need.level === 'L1'
+                ? 'This draft requires individual human review and will never be batch-confirmed.'
+                : 'This draft is eligible for batch review.')
+      });
+    }
+  }
+];
+
+// ------------------------------------- detection + registration (document → navigator → polyfill)
+const registered = [];   // resolved RegisteredTool handles (on Chrome registerTool() returns a Promise)
+async function registerTools(mc, surfaceName){
+  // Spec-baseline declarative API first: some hosts only wire tools to their agent bridge via provideContext.
+  if (typeof mc.provideContext === 'function'){
+    mc.provideContext({ tools });
+    log('registered ' + tools.length + ' tools via ' + surfaceName + '.provideContext(): ' + tools.map(t => t.name).join(', '));
+    if (typeof mc.registerTool === 'function') log('note: ' + surfaceName + '.registerTool() also exists (not used this run)');
+    window.relaySpike = { tools, registered };
+    return 'provideContext';
+  }
+  if (typeof mc.registerTool === 'function'){
+    for (const t of tools){
+      const handle = await mc.registerTool(t);
+      registered.push(handle);
+      const kind = handle === undefined ? 'undefined'
+                 : (handle && handle.constructor ? handle.constructor.name : typeof handle);
+      let members = '';
+      try {
+        const p = handle && Object.getPrototypeOf(handle);
+        if (p) members = ' {' + Object.getOwnPropertyNames(p).filter(k => k !== 'constructor').join(', ') + '}';
+      } catch { /* best-effort */ }
+      log('registered via ' + surfaceName + '.registerTool(): ' + t.name + ' → ' + kind + members);
+    }
+    window.relaySpike = { tools, registered };  // console/debug access
+    return 'registerTool';
+  }
+  throw new Error('no registerTool()/provideContext() on ' + surfaceName);
+}
+
+let polyfillTried = false;
+let attached = false;
+const t0 = Date.now();
+
+function findSurface(){
+  if (document.modelContext) return { mc: document.modelContext, name: 'document.modelContext' };
+  if (navigator.modelContext) return { mc: navigator.modelContext, name: 'navigator.modelContext' };
+  return null;
+}
+
+function renderDetect(){
+  detectEl.innerHTML = '';
+  const hasDoc = !!document.modelContext, hasNav = !!navigator.modelContext;
+  badge(detectEl, hasDoc ? 'ok' : 'bad', 'document.modelContext: ' + hasDoc);
+  badge(detectEl, hasNav ? 'ok' : 'bad', 'navigator.modelContext: ' + hasNav);
+}
+
+async function attach(found, how){
+  attached = true;
+  renderDetect();
+  log('surface detected ' + how + ' (+' + ((Date.now() - t0) / 1000).toFixed(1) + 's): ' + found.name);
+  try {
+    const proto = Object.getPrototypeOf(found.mc);
+    const surface = [...new Set([
+      ...(proto ? Object.getOwnPropertyNames(proto) : []),
+      ...Object.keys(found.mc)
+    ])].filter(k => k !== 'constructor');
+    badge(detectEl, 'warn', 'surface: ' + surface.join(', '));
+    log('surface members on ' + found.name + ': ' + surface.join(', '));
+  } catch (e) { /* introspection is best-effort */ }
+
+  try {
+    const method = await registerTools(found.mc, found.name);
+    regEl.innerHTML = '';
+    badge(regEl, 'ok', tools.length + ' tools registered via ' + method + '()');
+  } catch (e){
+    regEl.innerHTML = '';
+    badge(regEl, 'bad', 'registration failed: ' + e.message);
+    log('registration FAILED: ' + e.message);
+  }
+}
+
+function maybeLoadPolyfill(){
+  if (attached || polyfillTried || !new URLSearchParams(location.search).has('polyfill')) return;
+  polyfillTried = true;
+  log('loading @mcp-b/global polyfill from esm.sh …');
+  import('https://esm.sh/@mcp-b/global')
+    .then(() => log('polyfill loaded — waiting for its surface to appear'))
+    .catch(e => log('polyfill load FAILED: ' + e.message));
+}
+
+(function boot(){
+  renderDetect();
+  const found = findSurface();
+  if (found){ attach(found, 'at page load'); return; }
+
+  log('no WebMCP surface at page load — watching for late injection (some hosts attach the API only after the user grants page access)');
+  badge(regEl, 'warn', 'waiting for a WebMCP surface to appear… (grant the agent access to this page, or reload with ?polyfill=1)');
+  setTimeout(maybeLoadPolyfill, 3000);  // native surface gets a 3s head start
+  const watcher = setInterval(() => {
+    if (attached) { clearInterval(watcher); return; }
+    const s = findSurface();
+    if (s){ clearInterval(watcher); attach(s, 'late-injected after load'); }
+  }, 150);
+})();
+</script>
+</body></html>

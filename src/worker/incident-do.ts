@@ -4,6 +4,11 @@
 import type { IncidentData, ThreadMessage } from '../shared/types';
 import { compileAttention } from '../shared/attention';
 import { decideDraft, type DraftInput } from './draft-logic';
+import {
+  decideCommit, validatePanelToken, type CommitInput, type PanelTokenRecord,
+} from './commit-logic';
+
+const PANEL_TOKEN_TTL_MS = 5 * 60 * 1000;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -112,6 +117,61 @@ export class IncidentDO {
         await this.ctx.storage.put('data', data);
       }
       return json(decision.body);
+    }
+
+    if (req.method === 'POST' && url.pathname === '/panel-token') {
+      const body = (await req.json()) as { participantId: string };
+      if (!data.participants.some((p) => p.id === body.participantId)) {
+        return json({ error: 'unknown participant' }, 403);
+      }
+      const record: PanelTokenRecord = {
+        token: crypto.randomUUID(),
+        expiresAt: new Date(Date.now() + PANEL_TOKEN_TTL_MS).toISOString(),
+      };
+      await this.ctx.storage.put(`panelToken:${body.participantId}`, record);
+      return json({ panelToken: record.token, expiresAt: record.expiresAt });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/commit') {
+      const body = (await req.json()) as CommitInput & { participantId: string; panelToken?: unknown };
+      const now = new Date().toISOString();
+      const key = `panelToken:${body.participantId}`;
+      const record = await this.ctx.storage.get<PanelTokenRecord>(key);
+      await this.ctx.storage.delete(key); // single-use: consumed on any attempt
+      const tokenCheck = validatePanelToken(record, body.panelToken, now);
+      if (!tokenCheck.ok) {
+        return json({ status: 'rejected', reason: `invalid panel token: ${tokenCheck.reason}` }, 403);
+      }
+
+      const decision = decideCommit(data, body.participantId, body, now);
+      if (decision.kind === 'rejected') return json(decision.body);
+
+      for (const d of decision.confirmed) {
+        d.status = 'confirmed';
+        const need = data.needs.find((n) => n.id === d.needId);
+        if (need && need.status === 'open') need.status = 'matched';
+        data.audit.push({
+          at: now, participantId: body.participantId, actor: 'human',
+          action: 'commitment-confirmed', needId: d.needId, level: d.level,
+        });
+      }
+      for (const d of decision.discarded) {
+        d.status = 'discarded';
+        data.audit.push({
+          at: now, participantId: body.participantId, actor: 'human',
+          action: 'draft-discarded', needId: d.needId, level: d.level,
+        });
+      }
+      data.commitments.push(...decision.commitments);
+      data.incident.version += 1;
+      await this.ctx.storage.put('data', data);
+      return json({
+        status: 'applied',
+        confirmed: decision.confirmed,
+        discarded: decision.discarded,
+        commitments: decision.commitments,
+        version: data.incident.version,
+      });
     }
 
     if (req.method === 'GET' && url.pathname === '/activity') {

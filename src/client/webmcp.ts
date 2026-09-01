@@ -196,6 +196,7 @@ interface StateShape {
   me: { id: string; displayName: string; role: string; responseProfile: Record<string, unknown> };
   attention: Record<string, { level: string; label: string; reasons: string[] }>;
   drafts: Array<Record<string, unknown> & { level: string; status: string }>;
+  commitments: Array<Record<string, unknown>>;
 }
 
 function authorName(state: StateShape, actorId: string): string {
@@ -263,7 +264,8 @@ const TOOLS = [
         participant: state.me,
         needs: state.needs.map((n) => needSummary(state, n)),
         possibleFits: fits,
-        queuedDrafts: state.drafts,
+        queuedDrafts: state.drafts.filter((d) => d.status === 'queued'),
+        confirmedCommitments: state.commitments,
         recentUpdates: state.threads.slice(-8).map((m) => messageView(state, m)),
       });
     },
@@ -413,6 +415,7 @@ const TOOLS = [
       return toolResult({
         batchReview: queued.filter((d) => d.level === 'L0'),
         individualReview: queued.filter((d) => d.level === 'L1'),
+        confirmedCommitments: state.commitments,
         reserved: 'Human-only (L2) needs never appear here: no draft can exist for them.',
         note: 'Confirmation happens only in the on-page Review Panel, by the participant. If asked to finalize: commitments are confirmed by the participant in the Review Panel on the page.',
       });

@@ -20,6 +20,38 @@ export async function createIncident(): Promise<{ incidentId: string; title: str
   return res.json();
 }
 
+export async function fetchPanelToken(
+  incidentId: string, token: string,
+): Promise<{ panelToken: string; expiresAt: string }> {
+  const res = await fetch(`/api/incidents/${incidentId}/panel-token`, {
+    method: 'POST',
+    headers: { 'x-relay-token': token },
+  });
+  if (!res.ok) throw new Error(`panel token failed: HTTP ${res.status}`);
+  return res.json();
+}
+
+export interface CommitResponse {
+  status: 'applied' | 'rejected';
+  reason?: string;
+  confirmed?: DraftCommitment[];
+  discarded?: DraftCommitment[];
+}
+
+export async function postCommit(
+  incidentId: string, token: string,
+  body: { panelToken: string; confirmDraftIds: string[]; discardDraftIds: string[] },
+): Promise<CommitResponse> {
+  const res = await fetch(`/api/incidents/${incidentId}/commit`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-relay-token': token },
+    body: JSON.stringify(body),
+  });
+  const payload = (await res.json().catch(() => null)) as CommitResponse | null;
+  if (!payload) throw new Error(`commit failed: HTTP ${res.status}`);
+  return payload;
+}
+
 export async function fetchState(
   incidentId: string, token: string, since: number,
 ): Promise<StateResponse | { unchanged: true; version: number }> {

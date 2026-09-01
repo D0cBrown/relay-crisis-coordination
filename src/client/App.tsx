@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { AttentionInfo, Need, ThreadMessage } from '../shared/types';
-import { createIncident, fetchState, type StateResponse } from './api';
+import type { AttentionInfo, DraftCommitment, Need, ThreadMessage } from '../shared/types';
+import {
+  createIncident, fetchPanelToken, fetchState, postCommit, type StateResponse,
+} from './api';
 import {
   getWebMCPSnapshot, mountWebMCP, subscribeWebMCP, unmountWebMCP,
 } from './webmcp';
@@ -154,6 +156,8 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
         <span className="version">state v{state.version}</span>
       </section>
 
+      <ReviewPanel incidentId={incidentId} token={token} state={state} />
+
       <div className="columns">
         <section className="needs">
           {sorted.map((n) => (
@@ -191,23 +195,6 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
             Tools queue <strong>drafts</strong> only — nothing is ever confirmed without you.
           </p>
 
-          {state.drafts.filter((d) => d.status === 'queued').length > 0 && (
-            <>
-              <h2>Queued drafts</h2>
-              <ul className="draft-list">
-                {state.drafts.filter((d) => d.status === 'queued').map((d) => (
-                  <li key={d.id}>
-                    <span className={`badge ${d.level.toLowerCase()}`}>
-                      {d.level === 'L0' ? 'Routine' : 'Review required'}
-                    </span>{' '}
-                    {d.summary}
-                  </li>
-                ))}
-              </ul>
-              <p className="muted">Confirm or discard in the Review Panel — never via a tool.</p>
-            </>
-          )}
-
           {webmcp.log.length > 0 && (
             <details className="mcp-log" open>
               <summary>Invocation log</summary>
@@ -216,7 +203,133 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
           )}
         </aside>
       </div>
+
+      {state.commitments.length > 0 && (
+        <section className="activity">
+          <h2>Confirmed commitments</h2>
+          <ul>
+            {state.commitments.map((c) => {
+              const need = needsById(needs)[c.needId];
+              return (
+                <li key={c.id}>
+                  ✓ <strong>{c.summary}</strong>
+                  {need && <> — {need.title}</>}
+                  <span className="muted"> · confirmed by the participant in the Review Panel</span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="muted">
+            Demo records only — confirmed commitments here do not claim any real-world outcome.
+          </p>
+        </section>
+      )}
     </main>
+  );
+}
+
+function needsById(needs: Need[]): Record<string, Need> {
+  return Object.fromEntries(needs.map((n) => [n.id, n]));
+}
+
+function ReviewPanel({ incidentId, token, state }: {
+  incidentId: string; token: string; state: StateResponse;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const queued = state.drafts.filter((d) => d.status === 'queued');
+  if (queued.length === 0) return null;
+
+  const routine = queued.filter((d) => d.level === 'L0');
+  const individual = queued.filter((d) => d.level !== 'L0');
+  const byId = needsById(state.needs);
+  const authors = Object.fromEntries(state.participants.map((p) => [p.id, p.displayName]));
+
+  async function act(confirmDraftIds: string[], discardDraftIds: string[] = []) {
+    setBusy(true); setMsg(null);
+    try {
+      // per-render, single-use panel token: fetched by the human panel, consumed by the commit
+      const { panelToken } = await fetchPanelToken(incidentId, token);
+      const res = await postCommit(incidentId, token, { panelToken, confirmDraftIds, discardDraftIds });
+      setMsg(res.status === 'applied'
+        ? `Done: ${res.confirmed?.length ?? 0} confirmed, ${res.discarded?.length ?? 0} discarded.`
+        : `Rejected: ${res.reason}`);
+      window.dispatchEvent(new Event('relay:changed'));
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="review-panel">
+      <h2>Review Panel — your agent prepared these drafts; you decide</h2>
+
+      {routine.length > 0 && (
+        <div className="review-group">
+          <h3>Routine — batch review</h3>
+          {routine.map((d) => (
+            <DraftRow key={d.id} draft={d} need={byId[d.needId]} authors={authors}
+              busy={busy} onDiscard={() => act([], [d.id])} />
+          ))}
+          <button disabled={busy} onClick={() => act(routine.map((d) => d.id))}>
+            Confirm {routine.length} routine commitment{routine.length > 1 ? 's' : ''}
+          </button>
+        </div>
+      )}
+
+      {individual.length > 0 && (
+        <div className="review-group">
+          <h3>Review required — confirm each item individually</h3>
+          {individual.map((d) => (
+            <DraftRow key={d.id} draft={d} need={byId[d.needId]} authors={authors}
+              busy={busy} onDiscard={() => act([], [d.id])}
+              onConfirm={() => act([d.id])} />
+          ))}
+        </div>
+      )}
+
+      <p className="muted">
+        Human-only needs never appear here: no draft can exist for them. Nothing is confirmed
+        except by these buttons.
+      </p>
+      {msg && <p className="review-msg">{msg}</p>}
+    </section>
+  );
+}
+
+function DraftRow({ draft, need, authors, busy, onConfirm, onDiscard }: {
+  draft: DraftCommitment;
+  need: Need | undefined;
+  authors: Record<string, string>;
+  busy: boolean;
+  onConfirm?: () => void;
+  onDiscard: () => void;
+}) {
+  return (
+    <article className={`draft-row ${draft.level.toLowerCase()}`}>
+      <div className="card-head">
+        <span className={`badge ${draft.level.toLowerCase()}`}>
+          {draft.level === 'L0' ? 'Routine' : 'Review required'}
+        </span>
+        <strong>{need?.title ?? draft.needId}</strong>
+      </div>
+      <p><em>{draft.actionType}</em> — {draft.summary}</p>
+      <p className="muted">Agent motivation: {draft.motivation}</p>
+      {draft.escalationReason && <p className="reasons">Escalated: {draft.escalationReason}</p>}
+      {need && (
+        <details>
+          <summary>Source request (verbatim) — {authors[need.sourceActorId] ?? need.sourceActorId}</summary>
+          <blockquote className="verbatim">{need.body}</blockquote>
+        </details>
+      )}
+      <div className="row-actions">
+        {onConfirm && <button disabled={busy} onClick={onConfirm}>Confirm this commitment</button>}
+        <button className="secondary" disabled={busy} onClick={onDiscard}>Discard</button>
+      </div>
+    </article>
   );
 }
 
@@ -233,6 +346,7 @@ function NeedCard({ need, attention, messages, authors }: {
         <span className={`badge ${level.toLowerCase()}`}>{attention?.label ?? 'Human-only'}</span>
         <span className={`prio ${need.priority}`}>{need.priority}</span>
         <span className="cat">{need.category}</span>
+        {need.status !== 'open' && <span className="status-chip">{need.status}</span>}
       </div>
       <h3>{need.title}</h3>
       <p className="meta">

@@ -13,7 +13,7 @@ export interface Env {
 }
 
 const DEV_SECRET = 'relay-dev-secret-not-for-production';
-const secretOf = (env: Env) => env.MAGIC_SECRET ?? DEV_SECRET;
+const secretOf = (env: Env) => env.MAGIC_SECRET || DEV_SECRET;
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

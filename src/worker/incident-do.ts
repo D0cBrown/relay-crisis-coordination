@@ -3,6 +3,7 @@
 
 import type { IncidentData, ThreadMessage } from '../shared/types';
 import { compileAttention } from '../shared/attention';
+import { decideDraft, type DraftInput } from './draft-logic';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -89,6 +90,36 @@ export class IncidentDO {
       });
       await this.ctx.storage.put('data', data);
       return json({ ok: true, message: msg, version: data.incident.version });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/draft') {
+      const body = (await req.json()) as DraftInput & { participantId: string };
+      const now = new Date().toISOString();
+      const decision = decideDraft(data, body.participantId, body, now);
+      if (decision.kind === 'queued') {
+        data.drafts.push(decision.draft);
+        data.incident.version += 1;
+        data.audit.push({
+          at: now, participantId: body.participantId, actor: 'agent',
+          action: 'draft-queued', needId: decision.draft.needId, level: decision.draft.level,
+        });
+        await this.ctx.storage.put('data', data);
+      } else if (decision.kind === 'rejected') {
+        data.audit.push({
+          at: now, participantId: body.participantId, actor: 'agent',
+          action: 'draft-rejected', needId: typeof body.needId === 'string' ? body.needId : undefined,
+        });
+        await this.ctx.storage.put('data', data);
+      }
+      return json(decision.body);
+    }
+
+    if (req.method === 'GET' && url.pathname === '/activity') {
+      return json({
+        incidentId: data.incident.id,
+        version: data.incident.version,
+        activity: data.audit.slice(-50),
+      });
     }
 
     return json({ error: 'not found' }, 404);

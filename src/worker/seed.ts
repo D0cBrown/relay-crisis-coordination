@@ -147,7 +147,8 @@ const threads: ThreadMessage[] = [
 ];
 
 export function buildLangtangSeed(incidentId: string): IncidentData {
-  return {
+  // structuredClone: each incident gets its own mutable copy of the seed arrays.
+  return structuredClone({
     incident: {
       id: incidentId,
       title: 'Langtang Valley Flood Response — Demo Scenario',
@@ -163,5 +164,5 @@ export function buildLangtangSeed(incidentId: string): IncidentData {
     drafts: [],
     commitments: [],
     audit: [{ at: T0, actor: 'system', action: 'incident-seeded' }],
-  };
+  } satisfies IncidentData);
 }

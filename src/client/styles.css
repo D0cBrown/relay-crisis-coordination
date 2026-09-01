@@ -57,3 +57,10 @@ button:disabled { opacity: .6; cursor: wait; }
   background: #f4f4ef; border: 1px solid #e2e2da; border-radius: 10px;
   padding: .75rem .9rem; align-self: start; position: sticky; top: 1rem;
 }
+.tool-list, .draft-list { padding-left: 1.1rem; font-size: .88rem; margin: .3rem 0; }
+.tool-list li, .draft-list li { margin: .15rem 0; }
+.mcp-log pre {
+  background: #111; color: #c9f0c9; padding: .5rem .6rem; border-radius: 6px;
+  font-size: .72rem; white-space: pre-wrap; word-break: break-word; max-height: 260px; overflow-y: auto;
+}
+.mcp-log summary { cursor: pointer; font-size: .85rem; }

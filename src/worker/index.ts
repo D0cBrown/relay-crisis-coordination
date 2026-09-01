@@ -30,7 +30,7 @@ export default {
       return createIncident(env);
     }
 
-    const m = url.pathname.match(/^\/api\/incidents\/([\w-]+)\/(state|messages)$/);
+    const m = url.pathname.match(/^\/api\/incidents\/([\w-]+)\/(state|messages|drafts|activity)$/);
     if (m) {
       const [, incidentId, resource] = m;
       const token = url.searchParams.get('p') ?? req.headers.get('x-relay-token') ?? '';
@@ -49,6 +49,17 @@ export default {
           body: JSON.stringify({ ...body, participantId }),
           headers: { 'content-type': 'application/json' },
         });
+      }
+      if (resource === 'drafts' && req.method === 'POST') {
+        const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+        return stub.fetch('https://do/draft', {
+          method: 'POST',
+          body: JSON.stringify({ ...body, participantId }),
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (resource === 'activity' && req.method === 'GET') {
+        return stub.fetch('https://do/activity');
       }
       return json({ error: 'method not allowed' }, 405);
     }

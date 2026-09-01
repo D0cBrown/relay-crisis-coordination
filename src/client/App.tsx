@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { AttentionInfo, Need, ThreadMessage } from '../shared/types';
 import { createIncident, fetchState, type StateResponse } from './api';
+import {
+  getWebMCPSnapshot, mountWebMCP, subscribeWebMCP, unmountWebMCP,
+} from './webmcp';
 
 export function App() {
   const m = window.location.pathname.match(/^\/i\/([\w-]+)/);
@@ -86,7 +89,13 @@ function useIncidentState(incidentId: string, token: string) {
     }
     tick();
     const t = setInterval(tick, 3000);
-    return () => { stopped = true; clearInterval(t); };
+    const onChanged = () => tick();
+    window.addEventListener('relay:changed', onChanged);
+    return () => {
+      stopped = true;
+      clearInterval(t);
+      window.removeEventListener('relay:changed', onChanged);
+    };
   }, [incidentId, token]);
 
   return { state, error };
@@ -96,6 +105,12 @@ const LEVEL_ORDER = { L0: 0, L1: 1, L2: 2 } as const;
 
 function CoordinationView({ incidentId, token }: { incidentId: string; token: string }) {
   const { state, error } = useIncidentState(incidentId, token);
+  const webmcp = useSyncExternalStore(subscribeWebMCP, getWebMCPSnapshot);
+
+  useEffect(() => {
+    mountWebMCP(incidentId, token);
+    return () => unmountWebMCP();
+  }, [incidentId, token]);
 
   if (error) {
     return (
@@ -154,11 +169,51 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
 
         <aside className="tools-panel">
           <h2>Agent tools</h2>
+          {webmcp.surface ? (
+            <>
+              <p className="muted">
+                surface: <code>{webmcp.surface}</code>
+                {webmcp.registeredVia && <> · via <code>{webmcp.registeredVia}()</code></>}
+                {!webmcp.active && <> · <strong>inactive</strong></>}
+              </p>
+              <ul className="tool-list">
+                {webmcp.tools.map((t) => <li key={t}><code>{t}</code></li>)}
+              </ul>
+            </>
+          ) : (
+            <p className="muted">
+              No WebMCP surface detected yet. Open this page in a WebMCP-enabled browser
+              (ChatGPT desktop-app browser, or Chrome 149+ with the
+              <code> #enable-webmcp-testing</code> flag) and the tools register automatically.
+            </p>
+          )}
           <p className="muted">
-            WebMCP tools register here when the coordination view is active (Phase 3).
-            Drafts created by your agent will appear in the Review Panel — nothing is ever
-            confirmed without you.
+            Tools queue <strong>drafts</strong> only — nothing is ever confirmed without you.
           </p>
+
+          {state.drafts.filter((d) => d.status === 'queued').length > 0 && (
+            <>
+              <h2>Queued drafts</h2>
+              <ul className="draft-list">
+                {state.drafts.filter((d) => d.status === 'queued').map((d) => (
+                  <li key={d.id}>
+                    <span className={`badge ${d.level.toLowerCase()}`}>
+                      {d.level === 'L0' ? 'Routine' : 'Review required'}
+                    </span>{' '}
+                    {d.summary}
+                  </li>
+                ))}
+              </ul>
+              <p className="muted">Confirm or discard in the Review Panel — never via a tool.</p>
+            </>
+          )}
+
+          {webmcp.log.length > 0 && (
+            <details className="mcp-log" open>
+              <summary>Invocation log</summary>
+              <pre>{webmcp.log.map((l) => `[${l.at}] ${l.line}`).join('\n')}</pre>
+            </details>
+          )}
         </aside>
       </div>
     </main>

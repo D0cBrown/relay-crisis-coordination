@@ -4,6 +4,7 @@
 import type { IncidentData, ThreadMessage } from '../shared/types';
 import { compileAttention } from '../shared/attention';
 import { decideDraft, type DraftInput } from './draft-logic';
+import { buildLangtangSeed } from './seed';
 import {
   decideCommit, validatePanelToken, type CommitInput, type PanelTokenRecord,
 } from './commit-logic';
@@ -172,6 +173,20 @@ export class IncidentDO {
         commitments: decision.commitments,
         version: data.incident.version,
       });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/reset') {
+      const body = (await req.json()) as { participantId: string };
+      const me = data.participants.find((p) => p.id === body.participantId);
+      if (!me || me.role !== 'coordinator') {
+        return json({ error: 'only a coordinator can reset the demo incident' }, 403);
+      }
+      const fresh = buildLangtangSeed(data.incident.id);
+      await this.ctx.storage.put('data', fresh);
+      // invalidate any outstanding panel tokens
+      const tokens = await this.ctx.storage.list({ prefix: 'panelToken:' });
+      for (const key of tokens.keys()) await this.ctx.storage.delete(key);
+      return json({ ok: true, reset: true, version: fresh.incident.version });
     }
 
     if (req.method === 'GET' && url.pathname === '/activity') {

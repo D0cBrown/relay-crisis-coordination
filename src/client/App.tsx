@@ -25,6 +25,17 @@ function Disclaimer() {
   );
 }
 
+const SUGGESTED_PROMPT =
+  "I have a car, two free hours this afternoon, and I can't provide medical care or enter unsafe areas. Catch me up, handle the safe logistics I can help with, and flag anything sensitive or uncertain for me.";
+
+const PARTICIPANT_LABELS: Record<string, string> = {
+  sam: 'Sam — volunteer with a car, ≤12 km, afternoon window (recommended for judges)',
+  maya: 'Maya — logistics volunteer with a van, lifting-capable',
+  arun: 'Arun — local group coordinator (can reset the demo)',
+  lena: 'Lena — observe-only participant',
+  nima: 'Nima — community member',
+};
+
 function Landing() {
   const [links, setLinks] = useState<Record<string, string> | null>(null);
   const [title, setTitle] = useState('');
@@ -60,9 +71,13 @@ function Landing() {
           <p>Join as a participant (magic links, demo-only identity):</p>
           <ul>
             {Object.entries(links).map(([id, href]) => (
-              <li key={id}><a href={href}>{id}</a></li>
+              <li key={id}><a href={href}>{PARTICIPANT_LABELS[id] ?? id}</a></li>
             ))}
           </ul>
+          <p className="muted">
+            Open a link in a WebMCP-enabled browser, then ask your agent:
+            <em> “{SUGGESTED_PROMPT}”</em>
+          </p>
         </section>
       )}
     </main>
@@ -156,6 +171,8 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
         <span className="version">state v{state.version}</span>
       </section>
 
+      <PromptStrip />
+
       <ReviewPanel incidentId={incidentId} token={token} state={state} />
 
       <div className="columns">
@@ -225,6 +242,24 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
         </section>
       )}
     </main>
+  );
+}
+
+function PromptStrip() {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(SUGGESTED_PROMPT);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard unavailable */ }
+  }
+  return (
+    <div className="prompt-strip">
+      <strong>What can I help with?</strong> Ask your agent:
+      <em> “{SUGGESTED_PROMPT}”</em>
+      <button className="secondary" onClick={copy}>{copied ? 'Copied ✓' : 'Copy prompt'}</button>
+    </div>
   );
 }
 

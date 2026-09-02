@@ -94,3 +94,8 @@ button.secondary { background: #eee; border-color: #bbb; }
   padding: .75rem .9rem; margin-bottom: 1.5rem;
 }
 .activity ul { padding-left: 1.1rem; }
+.prompt-strip {
+  background: #eef4fb; border: 1px solid #cfe0f3; border-radius: 10px;
+  padding: .55rem .8rem; margin: 0 0 1rem; font-size: .92rem;
+}
+.prompt-strip button { margin-left: .6rem; font-size: .8rem; padding: .25rem .6rem; }

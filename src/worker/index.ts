@@ -30,7 +30,7 @@ export default {
       return createIncident(env);
     }
 
-    const m = url.pathname.match(/^\/api\/incidents\/([\w-]+)\/(state|messages|drafts|activity|panel-token|commit)$/);
+    const m = url.pathname.match(/^\/api\/incidents\/([\w-]+)\/(state|messages|drafts|activity|panel-token|commit|reset)$/);
     if (m) {
       const [, incidentId, resource] = m;
       const token = url.searchParams.get('p') ?? req.headers.get('x-relay-token') ?? '';
@@ -63,6 +63,13 @@ export default {
       }
       if (resource === 'panel-token' && req.method === 'POST') {
         return stub.fetch('https://do/panel-token', {
+          method: 'POST',
+          body: JSON.stringify({ participantId }),
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      if (resource === 'reset' && req.method === 'POST') {
+        return stub.fetch('https://do/reset', {
           method: 'POST',
           body: JSON.stringify({ participantId }),
           headers: { 'content-type': 'application/json' },

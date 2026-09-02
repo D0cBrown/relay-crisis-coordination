@@ -117,6 +117,12 @@ Hackathon vertical slice: single scenario seed, English only, no accounts/notifi
 polling instead of websockets, and identity that is deliberately demo-grade. Confirmed
 commitments are demo records and claim no real-world outcome.
 
+One boundary worth stating precisely: Relay's guarantees apply to the **WebMCP tool
+surface** — no tool can confirm anything, and the server enforces levels and the one-time
+panel token. An agent that instead drives the browser UI itself (DOM automation, clicking
+the Review Panel's buttons) acts *as the user* and is indistinguishable from them; that
+delegation is between the user and their agent, and no website can override it.
+
 ## License
 
 MIT

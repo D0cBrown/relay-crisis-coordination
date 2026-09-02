@@ -33,7 +33,23 @@ export interface WebMCPStatus {
 }
 
 // ---------------------------------------------------------------- status store (for React)
-let snapshot: WebMCPStatus = { surface: null, registeredVia: null, tools: [], active: false, log: [] };
+// The invocation log is persisted per-tab so a page reload (agents sometimes refresh after
+// acting) does not wipe the evidence of earlier tool calls.
+const LOG_KEY = 'relay-webmcp-log';
+
+function loadPersistedLog(): Array<{ at: string; line: string }> {
+  try {
+    const raw = sessionStorage.getItem(LOG_KEY);
+    const parsed = raw ? JSON.parse(raw) as Array<{ at: string; line: string }> : [];
+    return Array.isArray(parsed) ? parsed.slice(-40) : [];
+  } catch {
+    return [];
+  }
+}
+
+let snapshot: WebMCPStatus = {
+  surface: null, registeredVia: null, tools: [], active: false, log: loadPersistedLog(),
+};
 const subscribers = new Set<() => void>();
 
 function update(patch: Partial<WebMCPStatus>) {
@@ -44,6 +60,7 @@ function update(patch: Partial<WebMCPStatus>) {
 function logLine(line: string) {
   const at = new Date().toISOString().slice(11, 19);
   update({ log: [...snapshot.log.slice(-40), { at, line }] });
+  try { sessionStorage.setItem(LOG_KEY, JSON.stringify(snapshot.log)); } catch { /* per-tab nicety only */ }
 }
 
 export function subscribeWebMCP(cb: () => void): () => void {

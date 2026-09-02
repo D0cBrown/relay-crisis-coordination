@@ -74,9 +74,16 @@ interface Session { incidentId: string; token: string }
 let session: Session | null = null;
 let watcherStarted = false;
 let registeredOnce = false;
+let readOnly = false; // observe-only profiles get read tools only ("register only what the participant can use")
 
-export function mountWebMCP(incidentId: string, token: string) {
+const READ_ONLY_TOOLS = new Set(['get_coordination_state', 'read_need', 'get_review_block']);
+function activeTools() {
+  return readOnly ? TOOLS.filter((t) => READ_ONLY_TOOLS.has(t.name)) : TOOLS;
+}
+
+export function mountWebMCP(incidentId: string, token: string, opts: { readOnly?: boolean } = {}) {
   session = { incidentId, token };
+  readOnly = !!opts.readOnly;
   update({ active: true });
   window.relayWebMCP = { unmount: unmountWebMCP, getStatus: getWebMCPSnapshot };
   if (!watcherStarted) {
@@ -128,15 +135,17 @@ function registerAll(found: { mc: ModelContextLike; name: string }) {
   registeredOnce = true;
   update({ surface: found.name });
   logLine(`surface detected: ${found.name}`);
+  const tools = activeTools();
+  if (readOnly) logLine('observe-only profile: registering read tools only');
   try {
     if (typeof found.mc.provideContext === 'function') {
-      found.mc.provideContext({ tools: TOOLS });
-      update({ registeredVia: 'provideContext', tools: TOOLS.map((t) => t.name) });
-      logLine(`registered ${TOOLS.length} tools via provideContext()`);
+      found.mc.provideContext({ tools });
+      update({ registeredVia: 'provideContext', tools: tools.map((t) => t.name) });
+      logLine(`registered ${tools.length} tools via provideContext()`);
     } else if (typeof found.mc.registerTool === 'function') {
-      for (const t of TOOLS) found.mc.registerTool(t);
-      update({ registeredVia: 'registerTool', tools: TOOLS.map((t) => t.name) });
-      logLine(`registered ${TOOLS.length} tools via registerTool()`);
+      for (const t of tools) found.mc.registerTool(t);
+      update({ registeredVia: 'registerTool', tools: tools.map((t) => t.name) });
+      logLine(`registered ${tools.length} tools via registerTool()`);
     } else {
       logLine(`surface ${found.name} has no provideContext/registerTool — cannot register`);
     }
@@ -208,7 +217,7 @@ interface StateShape {
   version: number;
   incident: { id: string; title: string; regionLabel: string; status: string };
   needs: Array<Record<string, unknown> & { id: string; sensitivity: string[]; sourceActorId: string; index: number; title: string }>;
-  threads: Array<{ id: string; needId?: string; authorActorId: string; text: string; kind: string; createdAt: string }>;
+  threads: Array<{ id: string; needId?: string; authorActorId: string; text: string; kind: string; createdAt: string; via?: string }>;
   participants: Array<{ id: string; displayName: string; role: string }>;
   me: { id: string; displayName: string; role: string; responseProfile: Record<string, unknown> };
   attention: Record<string, { level: string; label: string; reasons: string[] }>;
@@ -228,6 +237,7 @@ function messageView(state: StateShape, msg: StateShape['threads'][number]) {
     needId: msg.needId ?? null,
     kind: msg.kind,
     createdAt: msg.createdAt,
+    via: msg.via ?? 'human',
     ...(own ? { author, text: msg.text } : wrapUntrusted(author, msg.text)),
   };
 }
@@ -261,6 +271,7 @@ const TOOLS = [
     description:
       "Get the full current crisis-coordination state for the signed-in participant: open needs with priority, location and required capabilities, recent updates, this participant's response-profile attention level per need, and which needs may fit them. Call this first.",
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
     async execute() {
       if (!session) return inactiveResult();
       logLine('get_coordination_state invoked');
@@ -297,6 +308,7 @@ const TOOLS = [
       additionalProperties: false,
       properties: { needId: { type: 'string', description: 'Need id from get_coordination_state' } },
     },
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
     async execute(rawArgs: unknown) {
       if (!session) return inactiveResult();
       const args = parseArgs(rawArgs);
@@ -423,6 +435,7 @@ const TOOLS = [
     description:
       'List the participant\'s queued draft commitments with attention levels and escalation reasons, so the agent can explain what is ready for batch review, what requires individual review, and why.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    annotations: { readOnlyHint: true },
     async execute() {
       if (!session) return inactiveResult();
       logLine('get_review_block invoked');

@@ -59,6 +59,7 @@ export interface ThreadMessage {
   text: string;
   createdAt: string;
   kind: 'comment' | 'clarification' | 'resource-offer' | 'update';
+  via?: 'agent' | 'human'; // who actually posted on the author's behalf (undefined = human)
 }
 
 export interface DraftCommitment {

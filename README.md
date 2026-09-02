@@ -19,14 +19,25 @@ in the page's human **Review Panel** — no tool can confirm or dispatch anythin
 
 **Live demo:** https://relay.hackathon-webmcp.workers.dev
 
+## Where it has been verified to work (as of Sep 2, 2026)
+
+| Host | Page registers tools | Agent executes tools |
+|---|---|---|
+| **Chrome 149+** with `chrome://flags/#enable-webmcp-testing`, agent = ChatGPT side panel (5.6 Sol) | ✅ | ✅ **full loop verified**: offer → draft (L0) → clarification, then human confirmation |
+| Chrome 149+ flag, DevTools (`document.modelContext.getTools()` / `executeTool`) | ✅ | ✅ manual invocation |
+| ChatGPT desktop app, built-in browser (site tools on) | ✅ | ⚠️ in our runs the agent saw the tools but reported *"no callable handles"*; it never fabricated a result. Re-tested before submission — see [`spike/FINDINGS.md`](spike/FINDINGS.md) |
+
+We recommend judges start with the first row.
+
 ## 60-second judge path
 
-1. Open the live URL in a WebMCP-enabled browser — the **ChatGPT desktop app's built-in
-   browser**, or **Chrome 149+** with `chrome://flags/#enable-webmcp-testing` enabled.
+1. Open the live URL in **Chrome 149+** with `chrome://flags/#enable-webmcp-testing`
+   enabled and your agent attached (ChatGPT side panel), or in the ChatGPT desktop app's
+   built-in browser.
 2. Click **Create demo incident (Langtang seed)** and join as **Sam** (volunteer with a car).
-3. The **Agent tools** panel shows the WebMCP surface being detected and 6 tools registering,
-   with a live invocation log.
-4. Paste the suggested prompt to your agent (also shown on the page, with a copy button):
+3. The dark **Agent** panel shows the WebMCP surface being detected and 6 tools registering;
+   its **Invocation log** records every call (it survives reloads).
+4. Paste the suggested prompt to your agent (in the Agent panel, with a copy button):
 
    > I have a car, two free hours this afternoon, and I can't provide medical care or enter
    > unsafe areas. Catch me up, handle the safe logistics I can help with, and flag anything
@@ -71,12 +82,19 @@ L2 · untrusted third-party content → ≥L1 · outside declared travel range o
   state ([`draft-logic.ts`](src/worker/draft-logic.ts),
   [`commit-logic.ts`](src/worker/commit-logic.ts)). Client-side gating is UX, not
   enforcement.
-- **WebMCP tools create drafts only.** There is no confirm/dispatch tool. Confirmation
-  requires a **per-render, single-use, 5-minute panel token** issued to the human Review
-  Panel and consumed on any commit attempt (replay → 403).
+- **WebMCP tools create drafts only.** There is no confirm/dispatch tool on the surface —
+  that absence is the primary guarantee. The human commit path additionally requires a
+  short-lived (5 min), single-use panel token issued to the Review Panel and consumed on
+  any commit attempt (replay → 403): it forces commits through the panel code path and
+  blocks replays. It is not a proof of a human click — see *Known limits*.
 - **Third-party content is labeled twice**: explicit untrusted delimiters + warning in every
-  tool result that carries another user's text (and `untrustedContentHint` where surfaces
-  support it).
+  tool result that carries another user's text, and the read tools declare
+  `annotations.untrustedContentHint` for hosts that honor it.
+- **Agent provenance is visible to everyone**: messages an agent posts on a participant's
+  behalf carry `via: "agent"` and a badge in the thread; the audit log distinguishes
+  `actor: agent` from `actor: human`.
+- **Register only what the participant can use**: observe-only profiles get the three read
+  tools; write tools are never offered to them (and would be rejected server-side anyway).
 - **Identity is demo-only and pluggable**: signed magic links,
   HMAC(incidentId:participantId) with a secret in Wrangler secrets. No accounts.
 - **Append-only audit** of agent and human actions (`GET /api/incidents/:id/activity`).

@@ -153,6 +153,9 @@ test('ask_clarification posts to the public thread and state updates', async ({ 
   const mine = need.thread.find((m: { text?: string }) => m.text === 'Is there parking at the shelter entrance?');
   expect(mine).toBeTruthy();
   expect(mine.untrustedContent).toBeUndefined(); // own content, not wrapped
+  expect(mine.via).toBe('agent'); // provenance is recorded and visible to everyone
+  await page.locator('.card', { hasText: 'boxed meals' }).locator('summary').click();
+  await expect(page.locator('.card', { hasText: 'boxed meals' }).locator('.via-agent')).toHaveCount(1);
 });
 
 test('no commit/dispatch tool exists and tools go inert on unmount', async ({ page }) => {

@@ -84,6 +84,7 @@ export class IncidentDO {
         text,
         kind,
         createdAt: new Date().toISOString(),
+        via: body.actor === 'agent' ? 'agent' : 'human',
       };
       data.threads.push(msg);
       data.incident.version += 1;

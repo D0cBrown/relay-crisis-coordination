@@ -130,10 +130,13 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
   const { state, error } = useIncidentState(incidentId, token);
   const webmcp = useSyncExternalStore(subscribeWebMCP, getWebMCPSnapshot);
 
+  // Register only once the signed profile is known: observe-only participants get read tools only.
+  const preset = state?.me.responseProfile.preset;
   useEffect(() => {
-    mountWebMCP(incidentId, token);
+    if (!preset) return;
+    mountWebMCP(incidentId, token, { readOnly: preset === 'observe-only' });
     return () => unmountWebMCP();
-  }, [incidentId, token]);
+  }, [incidentId, token, preset]);
 
   if (error) {
     return (
@@ -434,6 +437,7 @@ function NeedCard({ need, attention, messages, authors }: {
             {messages.map((msg) => (
               <li key={msg.id}>
                 <strong>{authors[msg.authorActorId] ?? msg.authorActorId}</strong>
+                {msg.via === 'agent' && <span className="via-agent">via agent</span>}
                 <span className="kind"> [{msg.kind}]</span>: {msg.text}
               </li>
             ))}

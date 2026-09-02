@@ -37,6 +37,26 @@ In every failed environment the agent behaved **honestly**: it refused to fabric
 - Unregister mechanism (needed for the register-on-mount/unregister-on-unmount rule).
 - Retest the ChatGPT in-app browser after app updates before submission — the feature is days old; a fix may land before Sep 3 with zero changes on our side.
 
+## Update 2026-09-02 — first real agent execution
+
+In **Chrome 149+ (flag) with the ChatGPT side panel (model 5.6 Sol, "full access")**, the
+agent executed the registered tools for real on the production app: `offer_resource`,
+`draft_commitment` (queued L0) and `ask_clarification` within 300 ms, then the human
+confirmed in the Review Panel. Server audit:
+
+```
+07:00:53  agent  message:resource-offer  n2
+07:00:53  agent  draft-queued (L0)       n2
+07:00:53  agent  message:clarification   n4
+07:01:32  human  commitment-confirmed    n2
+```
+
+The same extension had refused execution the day before ("Chrome-control surface … blocked
+indirect execution") — so support is evolving fast; retest before relying on any row above.
+The agent also reloaded the page after acting, which wiped the in-memory invocation log; the
+log is now persisted per tab. The ChatGPT desktop in-app browser still reported "no callable
+handles" in our last run.
+
 ## Consequence for the demo
 
 Primary demo/video environment: **Chrome with the judges' flag**, showing real tool invocation and the L0/L1/L2 decisions in the on-page invocation log. The ChatGPT in-app browser is kept fully supported (spec-conformant registration + late-injection watcher) and retested as updates land; its current non-execution is documented as a platform limitation, not a page defect.

@@ -73,7 +73,17 @@ code { font-family: var(--font-mono); font-size: .86em; }
 .notice::before { content: '△ '; color: var(--l1); }
 .notice strong { font-weight: 600; }
 
-.profile-strip { font-size: .95rem; margin: .2rem 0 0; }
+.profile-strip {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .4rem;
+  font-size: .95rem; margin: .2rem 0 0;
+}
+.profile-strip .who { margin-right: .4rem; }
+.chip {
+  display: inline-block; padding: .1rem .55rem; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card);
+  font-family: var(--font-mono); font-size: .7rem; letter-spacing: .03em; color: var(--ink-soft);
+}
+.chip.no { border-color: var(--l2-line); color: var(--l2); background: var(--l2-bg); }
 
 /* ---------- attention map (unboxed stats) ---------- */
 .attention-map {
@@ -106,16 +116,43 @@ code { font-family: var(--font-mono); font-size: .86em; }
 }
 
 /* ---------- layout ---------- */
-.columns { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1.2rem; align-items: start; }
+.columns {
+  display: grid; grid-template-columns: minmax(0, 840px) auto; justify-content: space-between;
+  gap: 1.2rem; align-items: start;
+}
 @media (max-width: 880px) { .columns { grid-template-columns: 1fr; } }
+
+/* level groups */
+.level-group { margin-bottom: 1.6rem; }
+.group-title {
+  display: flex; align-items: baseline; gap: .55rem; margin: 0 0 .6rem;
+  font-family: var(--font-mono); font-size: .74rem; letter-spacing: .08em; color: var(--ink);
+}
+.group-dot { width: .55rem; height: .55rem; border-radius: 999px; align-self: center; }
+.level-group.l0 .group-dot { background: var(--l0); }
+.level-group.l1 .group-dot { background: var(--l1); }
+.level-group.l2 .group-dot { background: var(--l2); }
+.group-hint { text-transform: none; letter-spacing: 0; color: var(--muted); font-family: var(--font-body); font-size: .86rem; }
 
 /* ---------- need cards ---------- */
 .card {
   background: var(--card); border: 1px solid var(--hairline); border-radius: 8px;
   border-left: 3px solid var(--line);
-  padding: .8rem 1rem .7rem; margin-bottom: .7rem;
+  padding: 0 1rem .7rem; margin-bottom: .7rem; overflow: hidden;
   animation: rise .45s ease both;
+  transition: transform .15s ease, box-shadow .15s ease;
 }
+.card:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(22, 35, 59, 0.08); }
+.card .card-head {
+  margin: 0 -1rem .55rem; padding: .45rem 1rem; border-bottom: 1px solid var(--hairline);
+  background: #f6f4ee;
+}
+.card.l0 .card-head { background: var(--l0-bg); }
+.card.l1 .card-head { background: var(--l1-bg); }
+.card.l2 .card-head { background: var(--l2-bg); }
+.card-index { margin-left: auto; color: var(--muted); opacity: .55; }
+.card h3 { font-size: 1.08rem; margin: .1rem 0 .15rem; }
+.card .body { color: var(--ink-soft); font-size: .93rem; margin: .45rem 0; }
 .card:nth-child(2) { animation-delay: .04s; } .card:nth-child(3) { animation-delay: .08s; }
 .card:nth-child(4) { animation-delay: .12s; } .card:nth-child(5) { animation-delay: .16s; }
 .card:nth-child(6) { animation-delay: .2s; }  .card:nth-child(7) { animation-delay: .24s; }
@@ -158,6 +195,7 @@ details summary { cursor: pointer; font-size: .86rem; color: var(--ink-soft); }
 .badge.l0 { background: var(--l0-bg); color: var(--l0); }
 .badge.l1 { background: var(--l1-bg); color: var(--l1); }
 .badge.l2 { background: var(--l2-bg); color: var(--l2); }
+.card-head .badge { background: var(--card); }
 
 /* ---------- buttons ---------- */
 button {

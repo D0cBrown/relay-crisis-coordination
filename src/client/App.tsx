@@ -126,6 +126,12 @@ function useIncidentState(incidentId: string, token: string) {
 
 const LEVEL_ORDER = { L0: 0, L1: 1, L2: 2 } as const;
 
+const LEVEL_GROUPS = [
+  { level: 'L0', title: 'Routine', hint: 'your agent can prepare these for batch review' },
+  { level: 'L1', title: 'Review required', hint: 'drafts possible — you confirm one at a time' },
+  { level: 'L2', title: 'Human-only', hint: 'your agent may brief you; no drafts' },
+] as const;
+
 function CoordinationView({ incidentId, token }: { incidentId: string; token: string }) {
   const { state, error } = useIncidentState(incidentId, token);
   const webmcp = useSyncExternalStore(subscribeWebMCP, getWebMCPSnapshot);
@@ -171,11 +177,14 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
         </div>
       </header>
       <Disclaimer />
-      <p className="profile-strip">
-        You are <strong>{me.displayName}</strong> ({me.role}) — {profile.transport},
-        ≤{profile.maxTravelKm} km, {profile.availability || 'no availability window'}.
-        {profile.exclusions.length > 0 && <> Not for you: {profile.exclusions.join(', ')}.</>}
-      </p>
+      <div className="profile-strip">
+        <span className="who">You are <strong>{me.displayName}</strong> · {me.role}</span>
+        <span className="chip">{profile.transport === 'none' ? 'no transport' : profile.transport}</span>
+        <span className="chip">≤ {profile.maxTravelKm} km</span>
+        {profile.availability && <span className="chip">{profile.availability}</span>}
+        {profile.skills.map((s) => <span key={s} className="chip">{s}</span>)}
+        {profile.exclusions.map((x) => <span key={x} className="chip no">no {x}</span>)}
+      </div>
 
       <section className="attention-map">
         <div className="counter l0"><span className="num">{counts.L0}</span><span className="lbl">Routine</span></div>
@@ -188,15 +197,27 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
 
       <div className="columns">
         <section className="needs">
-          {sorted.map((n) => (
-            <NeedCard
-              key={n.id}
-              need={n}
-              attention={attention[n.id]}
-              messages={threads.filter((t) => t.needId === n.id)}
-              authors={Object.fromEntries(state.participants.map((p) => [p.id, p.displayName]))}
-            />
-          ))}
+          {LEVEL_GROUPS.map(({ level, title, hint }) => {
+            const items = sorted.filter((n) => (attention[n.id]?.level ?? 'L2') === level);
+            if (items.length === 0) return null;
+            return (
+              <div key={level} className={`level-group ${level.toLowerCase()}`}>
+                <h2 className="group-title">
+                  <span className="group-dot" />{title}
+                  <span className="group-hint">{hint}</span>
+                </h2>
+                {items.map((n) => (
+                  <NeedCard
+                    key={n.id}
+                    need={n}
+                    attention={attention[n.id]}
+                    messages={threads.filter((t) => t.needId === n.id)}
+                    authors={Object.fromEntries(state.participants.map((p) => [p.id, p.displayName]))}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </section>
 
         <AgentPanel webmcp={webmcp} />
@@ -419,6 +440,7 @@ function NeedCard({ need, attention, messages, authors }: {
         <span className={`prio ${need.priority}`}>{need.priority}</span>
         <span className="cat">{need.category}</span>
         {need.status !== 'open' && <span className="status-chip">{need.status}</span>}
+        <span className="card-index">#{need.index}</span>
       </div>
       <h3>{need.title}</h3>
       <p className="meta">
@@ -426,7 +448,7 @@ function NeedCard({ need, attention, messages, authors }: {
         {need.requiredCapabilities.length > 0 && <> · needs: {need.requiredCapabilities.join(', ')}</>}
         {need.amount && <> · {need.amount.value} {need.amount.unit}</>}
       </p>
-      <p>{need.body}</p>
+      <p className="body">{need.body}</p>
       {attention && attention.reasons.length > 0 && (
         <p className="reasons">{attention.reasons.join(' · ')}</p>
       )}

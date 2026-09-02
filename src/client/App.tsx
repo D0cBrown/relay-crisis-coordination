@@ -56,10 +56,16 @@ function Landing() {
   }
 
   return (
-    <main className="wrap">
-      <h1>Relay</h1>
-      <p className="tagline">In a crisis, goodwill is abundant. Coordination is scarce.<br />
-        <em>The agent coordinates; the human commits.</em></p>
+    <main className="wrap landing">
+      <div className="wordmark">Relay</div>
+      <h1 className="hero">
+        In a crisis, goodwill is abundant.<br />
+        <em>Coordination is scarce.</em>
+      </h1>
+      <p className="tagline">
+        A shared crisis board that your own browser agent can work through WebMCP —
+        <strong> the agent coordinates; the human commits.</strong>
+      </p>
       <Disclaimer />
       <button onClick={onCreate} disabled={busy}>
         {busy ? 'Creating…' : 'Create demo incident (Langtang seed)'}
@@ -69,7 +75,7 @@ function Landing() {
         <section>
           <h2>{title}</h2>
           <p>Join as a participant (magic links, demo-only identity):</p>
-          <ul>
+          <ul className="join-list">
             {Object.entries(links).map(([id, href]) => (
               <li key={id}><a href={href}>{PARTICIPANT_LABELS[id] ?? id}</a></li>
             ))}
@@ -154,21 +160,25 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
 
   return (
     <main className="wrap">
-      <header>
-        <h1>{incident.title}</h1>
-        <Disclaimer />
-        <p className="profile-strip">
-          You are <strong>{me.displayName}</strong> ({me.role}) — {profile.transport},
-          ≤{profile.maxTravelKm} km, {profile.availability || 'no availability window'}.
-          {profile.exclusions.length > 0 && <> Not for you: {profile.exclusions.join(', ')}.</>}
-        </p>
+      <header className="command-bar">
+        <div className="wordmark">Relay</div>
+        <div className="incident-meta">
+          <h1>{incident.title}</h1>
+          <span className="meta-line">{incident.regionLabel} · {incident.status}</span>
+        </div>
       </header>
+      <Disclaimer />
+      <p className="profile-strip">
+        You are <strong>{me.displayName}</strong> ({me.role}) — {profile.transport},
+        ≤{profile.maxTravelKm} km, {profile.availability || 'no availability window'}.
+        {profile.exclusions.length > 0 && <> Not for you: {profile.exclusions.join(', ')}.</>}
+      </p>
 
       <section className="attention-map">
-        <span className="badge l0">{counts.L0} routine</span>
-        <span className="badge l1">{counts.L1} review required</span>
-        <span className="badge l2">{counts.L2} human-only</span>
-        <span className="version">state v{state.version}</span>
+        <div className="counter l0"><span className="num">{counts.L0}</span><span className="lbl">Routine</span></div>
+        <div className="counter l1"><span className="num">{counts.L1}</span><span className="lbl">Review required</span></div>
+        <div className="counter l2"><span className="num">{counts.L2}</span><span className="lbl">Human-only</span></div>
+        <div className="live"><span className="dot" />live · v{state.version}</div>
       </section>
 
       <PromptStrip />

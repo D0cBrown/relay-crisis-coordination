@@ -126,6 +126,10 @@ function useIncidentState(incidentId: string, token: string) {
 
 const LEVEL_ORDER = { L0: 0, L1: 1, L2: 2 } as const;
 
+function jumpTo(level: 'L0' | 'L1' | 'L2') {
+  document.getElementById(`group-${level}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 const LEVEL_GROUPS = [
   { level: 'L0', title: 'Routine', hint: 'your agent can prepare these for batch review' },
   { level: 'L1', title: 'Review required', hint: 'drafts possible — you confirm one at a time' },
@@ -187,9 +191,9 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
       </div>
 
       <section className="attention-map">
-        <div className="counter l0"><span className="num">{counts.L0}</span><span className="lbl">Routine</span></div>
-        <div className="counter l1"><span className="num">{counts.L1}</span><span className="lbl">Review required</span></div>
-        <div className="counter l2"><span className="num">{counts.L2}</span><span className="lbl">Human-only</span></div>
+        <button type="button" className="counter l0" onClick={() => jumpTo('L0')} title="Jump to routine needs"><span className="num">{counts.L0}</span><span className="lbl">Routine</span></button>
+        <button type="button" className="counter l1" onClick={() => jumpTo('L1')} title="Jump to review-required needs"><span className="num">{counts.L1}</span><span className="lbl">Review required</span></button>
+        <button type="button" className="counter l2" onClick={() => jumpTo('L2')} title="Jump to human-only needs"><span className="num">{counts.L2}</span><span className="lbl">Human-only</span></button>
         <div className="live"><span className="dot" />live · v{state.version}</div>
       </section>
 
@@ -201,7 +205,7 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
             const items = sorted.filter((n) => (attention[n.id]?.level ?? 'L2') === level);
             if (items.length === 0) return null;
             return (
-              <div key={level} className={`level-group ${level.toLowerCase()}`}>
+              <div key={level} id={`group-${level}`} className={`level-group ${level.toLowerCase()}`}>
                 <h2 className="group-title">
                   <span className="group-dot" />{title}
                   <span className="group-hint">{hint}</span>

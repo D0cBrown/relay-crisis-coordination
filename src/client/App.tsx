@@ -4,7 +4,7 @@ import {
   createIncident, fetchPanelToken, fetchState, postCommit, type StateResponse,
 } from './api';
 import {
-  getWebMCPSnapshot, mountWebMCP, subscribeWebMCP, unmountWebMCP,
+  getWebMCPSnapshot, mountWebMCP, subscribeWebMCP, unmountWebMCP, type WebMCPStatus,
 } from './webmcp';
 
 export function App() {
@@ -81,8 +81,8 @@ function Landing() {
             ))}
           </ul>
           <p className="muted">
-            Open a link in a WebMCP-enabled browser, then ask your agent:
-            <em> “{SUGGESTED_PROMPT}”</em>
+            Open a link in a WebMCP-enabled browser; the Agent panel on the board carries a
+            suggested prompt.
           </p>
         </section>
       )}
@@ -181,8 +181,6 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
         <div className="live"><span className="dot" />live · v{state.version}</div>
       </section>
 
-      <PromptStrip />
-
       <ReviewPanel incidentId={incidentId} token={token} state={state} />
 
       <div className="columns">
@@ -198,37 +196,7 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
           ))}
         </section>
 
-        <aside className="tools-panel">
-          <h2>Agent tools</h2>
-          {webmcp.surface ? (
-            <>
-              <p className="muted">
-                surface: <code>{webmcp.surface}</code>
-                {webmcp.registeredVia && <> · via <code>{webmcp.registeredVia}()</code></>}
-                {!webmcp.active && <> · <strong>inactive</strong></>}
-              </p>
-              <ul className="tool-list">
-                {webmcp.tools.map((t) => <li key={t}><code>{t}</code></li>)}
-              </ul>
-            </>
-          ) : (
-            <p className="muted">
-              No WebMCP surface detected yet. Open this page in a WebMCP-enabled browser
-              (ChatGPT desktop-app browser, or Chrome 149+ with the
-              <code> #enable-webmcp-testing</code> flag) and the tools register automatically.
-            </p>
-          )}
-          <p className="muted">
-            Tools queue <strong>drafts</strong> only — nothing is ever confirmed without you.
-          </p>
-
-          {webmcp.log.length > 0 && (
-            <details className="mcp-log" open>
-              <summary>Invocation log</summary>
-              <pre>{webmcp.log.map((l) => `[${l.at}] ${l.line}`).join('\n')}</pre>
-            </details>
-          )}
-        </aside>
+        <AgentPanel webmcp={webmcp} />
       </div>
 
       {state.commitments.length > 0 && (
@@ -255,8 +223,20 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
   );
 }
 
-function PromptStrip() {
+const PANEL_KEY = 'relay-agent-panel';
+
+function AgentPanel({ webmcp }: { webmcp: WebMCPStatus }) {
+  const [open, setOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem(PANEL_KEY) !== 'closed'; } catch { return true; }
+  });
   const [copied, setCopied] = useState(false);
+
+  function toggle() {
+    setOpen((o) => {
+      try { localStorage.setItem(PANEL_KEY, o ? 'closed' : 'open'); } catch { /* per-browser nicety */ }
+      return !o;
+    });
+  }
   async function copy() {
     try {
       await navigator.clipboard.writeText(SUGGESTED_PROMPT);
@@ -264,12 +244,56 @@ function PromptStrip() {
       setTimeout(() => setCopied(false), 2000);
     } catch { /* clipboard unavailable */ }
   }
+
+  if (!open) {
+    return (
+      <button className="tools-rail" onClick={toggle} title="Open the agent panel">
+        <span className={`dot ${webmcp.surface ? 'on' : ''}`} />
+        <span className="rail-label">Agent</span>
+      </button>
+    );
+  }
+
   return (
-    <div className="prompt-strip">
-      <strong>What can I help with?</strong> Ask your agent:
-      <em> “{SUGGESTED_PROMPT}”</em>
-      <button className="secondary" onClick={copy}>{copied ? 'Copied ✓' : 'Copy prompt'}</button>
-    </div>
+    <aside className={`tools-panel ${webmcp.surface ? 'connected' : ''}`}>
+      <div className="panel-head">
+        <h2>Agent</h2>
+        <button className="ghost" onClick={toggle} aria-label="Collapse agent panel">→</button>
+      </div>
+
+      {webmcp.surface ? (
+        <>
+          <p className="muted">
+            <code>{webmcp.surface}</code>
+            {webmcp.registeredVia && <> · <code>{webmcp.registeredVia}()</code></>}
+            {!webmcp.active && <> · inactive</>}
+          </p>
+          <ul className="tool-list">
+            {webmcp.tools.map((t) => <li key={t}><code>{t}</code></li>)}
+          </ul>
+        </>
+      ) : (
+        <p className="muted">
+          No WebMCP surface in this browser yet. Open this page in the ChatGPT desktop-app
+          browser, or in Chrome 149+ with <code>#enable-webmcp-testing</code>, and the tools
+          register here automatically.
+        </p>
+      )}
+      <p className="muted">Tools queue drafts only — nothing is confirmed without you.</p>
+
+      <details className="prompt-block">
+        <summary>What can I help with? — suggested prompt</summary>
+        <p>“{SUGGESTED_PROMPT}”</p>
+        <button className="secondary" onClick={copy}>{copied ? 'Copied ✓' : 'Copy prompt'}</button>
+      </details>
+
+      {webmcp.log.length > 0 && (
+        <details className="mcp-log">
+          <summary>Invocation log ({webmcp.log.length})</summary>
+          <pre>{webmcp.log.map((l) => `[${l.at}] ${l.line}`).join('\n')}</pre>
+        </details>
+      )}
+    </aside>
   );
 }
 

@@ -1,40 +1,28 @@
-# Cut-list — registrazione "2026-09-03 09-10-39.mp4" (14:26) → video finale ≤ 2:55
+# Cut-list — registrazione "2026-09-03 10-17-01.mp4" (13:23) → video finale ≤ 2:55
 
-Timecode approssimati (±3 s). Ogni riga = uno spezzone da tenere, con l'mp3 di voiceover
-da metterci sotto. Tutto il resto si butta (attese dell'agente, scroll a vuoto).
+Questa ripresa contiene TUTTE le scene (inclusa la conferma singola della medicina e il ledger).
+Timecode ±3 s. Ogni riga = spezzone da tenere, con l'mp3 di voiceover da mettere sotto.
+Evitare i tratti in cui in alto compare la barra azzurra "Translate this page?" (1:36–4:30,
+6:12–6:18, 8:18–8:42): qui sotto sono già esclusi, dove serviva ho scelto alternative.
 
-| Scena / mp3 | Tieni da → a | Cosa si vede |
+| Scena / mp3 (durata parlato) | Tieni da → a | Cosa si vede |
 |---|---|---|
-| 1 · the-problem | 0:00 → 0:10 | landing, hero |
-| 2 · the-idea | 0:10 → 0:34 | click *Create demo incident* → link di Sam → board |
-| 3 · the-agent-plugs-in | 0:28 → 0:34 · 1:34 → 1:48 · 2:54 → 3:10 · 3:54 → 4:12 | pannello Agent con i 6 tool · prompt incollato e "Thinking" · pannello aperto · righe del log che compaiono |
-| 4 · bounded-agency | 5:24 → 5:40 · 9:22 → 9:40 · 9:58 → 10:12 | Review Panel che appare con i 2 draft routine · prompt footbridge · risposta con JSON `status: rejected` |
-| 5 · the-human-commits | 6:00 → 6:14 · 8:04 → 8:14 · 8:40 → 8:50 · **[CLIP NUOVA]** | righe espanse con *Source request (verbatim)* · click *Confirm 2 routine commitments* · card con `MATCHED` · conferma singola medicina + ledger (da registrare, vedi sotto) |
-| 6 · the-attack-that-fails | 12:00 → 12:14 · 12:18 → 12:24 · 13:00 → 13:14 · 13:46 → 13:54 | scroll alla card *Generator fuel reimbursement* · prompt · risposta · il messaggio iniettato citato nella chat |
-| 7 · close | 14:00 → 14:12 · poi 0:00 → 0:05 | risposta finale in tre righe · chiusura sulla landing |
+| 1 · the-problem (10 s) | 0:00 → 0:10 | landing, hero |
+| 2 · the-idea (16 s) | 0:10 → 0:22 · 0:22 → 0:30 | click *Create demo incident* → link di Sam → board con contatori 2/2/3 |
+| 3 · the-agent-plugs-in (22 s) | 0:24 → 0:30 · 0:42 → 0:50 · 12:00 → 12:10 · 12:48 → 13:00 | pannello Agent con i 6 tool · prompt incollato + "Thinking" · lista **Agent actions · server-verified** · *Invocation log* espanso (verde) |
+| 4 · bounded-agency (23 s) | 4:36 → 4:48 · 6:24 → 6:36 · 7:42 → 7:54 | Review Panel con i 2 draft routine · riga ambra *Review required* con "Escalated: … never batch-confirmed" · risposta con JSON `status: rejected` (zoom sul side panel) |
+| 5 · the-human-commits (22 s) | 10:48 → 11:00 · 11:04 → 11:14 · 11:14 → 11:20 · 11:24 → 11:32 · 11:36 → 11:42 | *Source request (verbatim)* espansa · click **Confirm 2 routine** · click **Confirm this commitment** (medicina) · ledger **Confirmed commitments** · card con `MATCHED` |
+| 6 · the-attack-that-fails (21 s) | 9:12 → 9:24 · 9:30 → 9:34 · 10:00 → 10:10 | card *Generator fuel reimbursement* con i messaggi di Nima (quello iniettato in vista) · prompt · risposta "treated as untrusted prompt injection…" (zoom) |
+| 7 · close (13 s) | 11:54 → 12:04 · 0:00 → 0:05 | risposta finale in tre righe · chiusura sulla landing |
 
-## Clip aggiuntiva da registrare (2–3 minuti di lavoro)
-
-Manca la parte **Review required**: l'agente ha draftato solo i due routine (pasti + filtri),
-mai la medicina, quindi non si vede né la riga escalated né la conferma individuale — ed è
-la scena che il voiceover 4–5 racconta ("it drafts the sealed-medicine pickup — and the server
-escalates it… the medicine needs my individual click").
-
-Sullo **stesso incident** (la medicina è ancora aperta), stessa finestra:
-1. Prima chiudi la barra "Translate this page?" di Chrome (×) — è rimasta visibile in mezzo
-   video.
-2. In ChatGPT: `Also draft the sealed medicine pickup and tell me what kind of review it needs.`
-   (se chiede conferma: `Yes, go ahead.`)
-3. Quando il Review Panel ricompare con la riga **Review required**: espandi *Source request
-   (verbatim)*, poi click **Confirm this commitment**.
-4. Scorri a **Confirmed commitments** (il ledger sotto la board) e fermati 4 s.
-
-Da questa clip prendi: riga escalated (scena 4, dopo il Review Panel), click singolo + ledger
-(scena 5, al posto di [CLIP NUOVA]).
+Extra utilizzabile: 8:48 → 8:54 risposta di `get_review_block` (se vuoi allungare la scena 4).
 
 ## Note di montaggio
 
-- Il parlato totale è 2:05: i tagli sopra danno ~2:40 di video, ok.
-- Dove il testo della chat è piccolo, in Clipchamp usa *Zoom/Pan* (ingrandisci del 130% sul
-  side panel) nei punti 10:00 (JSON rejected) e 13:48 (messaggio iniettato).
-- Le attese "Working for 2m…" non vanno mai in video: il voiceover copre le ellissi.
+- Parlato totale 2:05; i tagli sopra danno ~2:35 di video. Se una clip è più corta del suo
+  mp3, allungala tenendo l'ultimo fotogramma (Clipchamp: *Freeze frame*) o aggiungi 1–2 s
+  della clip adiacente.
+- Zoom 130% sul side panel nei punti 7:42–7:54 e 10:00–10:10 (testo piccolo).
+- Nessuna attesa "Working for…" deve restare in video.
+- Se in un tratto scelto vedi comunque la barra "Translate", in Clipchamp ritaglia (*Crop*)
+  ~40 px dal bordo superiore di quella clip.

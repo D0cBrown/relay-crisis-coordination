@@ -10,3 +10,4 @@ media/voiceover/
 *.mp4
 *.mkv
 *.webm
+media/build/

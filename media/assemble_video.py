@@ -19,14 +19,21 @@ BUILD.mkdir(parents=True, exist_ok=True)
 TAIL = 0.6  # seconds of silence after each scene's speech
 
 # (mp3, [(start_s, end_s, zoom)])  — timecodes from docs/VIDEO_CUTLIST.md
+# Strictly chronological: no footage from later in the recording is shown before its time.
 SCENES = [
     ("scene-1-the-problem.mp3", [(0, 10, False)]),
-    ("scene-2-the-idea.mp3", [(10, 30, False)]),
-    ("scene-3-the-agent-plugs-in.mp3", [(24, 30, False), (42, 50, False), (720, 730, False), (768, 780, False)]),
+    # create incident -> join as Sam -> board (no agent panel yet)
+    ("scene-2-the-idea.mp3", [(10, 24, False)]),
+    # agent panel opens with the 6 tools -> prompt sent -> agent starts working / reads the board
+    ("scene-3-the-agent-plugs-in.mp3", [(24, 31, False), (42, 51, False), (54, 70, False)]),
+    # Review Panel with the 2 routine drafts -> medicine row escalated -> footbridge rejected (zoom)
     ("scene-4-bounded-agency-at-work.mp3", [(276, 288, False), (384, 396, False), (462, 474, True)]),
-    ("scene-5-the-human-commits.mp3", [(648, 660, False), (664, 674, False), (674, 680, False), (684, 692, False), (696, 702, False)]),
+    # verbatim source -> Confirm 2 routine -> Confirm medicine -> ledger -> MATCHED cards
+    ("scene-5-the-human-commits.mp3", [(652, 658, False), (666, 673, False), (674, 679, False), (686, 691, False), (697, 700, False)]),
+    # reimbursement card with the injected message -> prompt -> answer (zoom)
     ("scene-6-the-attack-that-fails.mp3", [(552, 564, False), (570, 574, False), (600, 610, True)]),
-    ("scene-7-close.mp3", [(714, 724, False), (0, 5, False)]),
+    # final three-line answer with the server-verified agent actions visible -> landing
+    ("scene-7-close.mp3", [(716, 728, False), (0, 4, False)]),
 ]
 
 BASE_VF = "scale=1920:1032,pad=1920:1080:0:24:black,fps=30,format=yuv420p"

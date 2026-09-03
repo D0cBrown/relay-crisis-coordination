@@ -1,6 +1,6 @@
-# Devpost submission — Relay
+﻿# Devpost submission — Relay
 
-Copy each block into the matching Devpost field. Replace `<VIDEO_URL>` before submitting.
+Copy each block into the matching Devpost field. Replace `https://youtu.be/2gsv9Ct7Xwc` before submitting.
 
 ---
 
@@ -16,7 +16,7 @@ Crisis coordination where every volunteer's own AI agent triages — and only th
 
 - Live demo: https://relay.hackathon-webmcp.workers.dev
 - Repository (MIT): https://github.com/D0cBrown/relay-crisis-coordination
-- Demo video (< 3 min): `<VIDEO_URL>`
+- Demo video (< 3 min): `https://youtu.be/2gsv9Ct7Xwc`
 
 ## Built with
 
@@ -160,3 +160,4 @@ descriptions.
    the agent to `read_need` it: the message arrives wrapped as untrusted content.
 
 No build required. Coordinator reset: join as Arun and `POST /api/incidents/:id/reset`.
+

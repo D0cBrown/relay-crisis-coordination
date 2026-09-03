@@ -1,6 +1,6 @@
 ﻿# Devpost submission — Relay
 
-Copy each block into the matching Devpost field. Replace `https://youtu.be/2gsv9Ct7Xwc` before submitting.
+Copy each block into the matching Devpost field. Video URL already filled in.
 
 ---
 
@@ -160,4 +160,5 @@ descriptions.
    the agent to `read_need` it: the message arrives wrapped as untrusted content.
 
 No build required. Coordinator reset: join as Arun and `POST /api/incidents/:id/reset`.
+
 

@@ -224,7 +224,7 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
           })}
         </section>
 
-        <AgentPanel webmcp={webmcp} />
+        <AgentPanel webmcp={webmcp} state={state} />
       </div>
 
       {state.commitments.length > 0 && (
@@ -253,7 +253,32 @@ function CoordinationView({ incidentId, token }: { incidentId: string; token: st
 
 const PANEL_KEY = 'relay-agent-panel';
 
-function AgentPanel({ webmcp }: { webmcp: WebMCPStatus }) {
+const KIND_TO_TOOL: Record<string, string> = {
+  clarification: 'ask_clarification',
+  'resource-offer': 'offer_resource',
+};
+
+function AgentPanel({ webmcp, state }: { webmcp: WebMCPStatus; state: StateResponse }) {
+  // Server-verified agent actions, derived from incident state: correct regardless of which
+  // tab/context the host executed the tools in (the client-side log is per-tab).
+  const titles = needsById(state.needs);
+  const actions = [
+    ...state.threads
+      .filter((m) => m.via === 'agent')
+      .map((m) => ({
+        at: m.createdAt,
+        tool: KIND_TO_TOOL[m.kind] ?? 'message',
+        detail: m.needId ? titles[m.needId]?.title ?? m.needId : 'general thread',
+        tag: null as string | null,
+      })),
+    ...state.drafts.map((d) => ({
+      at: d.createdAt,
+      tool: 'draft_commitment',
+      detail: titles[d.needId]?.title ?? d.needId,
+      tag: `${d.level} · ${d.status}`,
+    })),
+  ].sort((a, b) => a.at.localeCompare(b.at)).slice(-10);
+
   const [open, setOpen] = useState<boolean>(() => {
     try { return localStorage.getItem(PANEL_KEY) !== 'closed'; } catch { return true; }
   });
@@ -314,6 +339,20 @@ function AgentPanel({ webmcp }: { webmcp: WebMCPStatus }) {
         <p>“{SUGGESTED_PROMPT}”</p>
         <button className="secondary" onClick={copy}>{copied ? 'Copied ✓' : 'Copy prompt'}</button>
       </details>
+
+      {actions.length > 0 && (
+        <div className="agent-actions">
+          <h3>Agent actions · server-verified</h3>
+          <ul>
+            {actions.map((a, i) => (
+              <li key={i}>
+                <code>{a.tool}</code> → {a.detail}
+                {a.tag && <span className="action-tag">{a.tag}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {webmcp.log.length > 0 && (
         <details className="mcp-log">

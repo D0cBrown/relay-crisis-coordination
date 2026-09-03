@@ -361,3 +361,19 @@ img { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* server-verified agent actions (inside the dark panel) */
+.agent-actions { margin: .6rem 0 .4rem; }
+.agent-actions h3 {
+  font-family: var(--font-mono); font-size: .7rem; text-transform: uppercase;
+  letter-spacing: .07em; color: var(--console-dim); margin: 0 0 .3rem;
+}
+.agent-actions ul { list-style: none; padding: 0; margin: 0; font-size: .78rem; }
+.agent-actions li {
+  padding: .22rem 0; border-bottom: 1px dashed rgba(147, 160, 184, 0.2); color: var(--console-text);
+}
+.agent-actions li code { color: var(--console-green); }
+.action-tag {
+  margin-left: .4rem; font-family: var(--font-mono); font-size: .66rem; letter-spacing: .05em;
+  color: var(--accent);
+}

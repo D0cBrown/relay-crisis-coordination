@@ -7,3 +7,6 @@ test-results/
 playwright-report/
 media/voiceover/
 
+*.mp4
+*.mkv
+*.webm
